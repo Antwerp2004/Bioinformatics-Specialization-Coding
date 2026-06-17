@@ -1062,9 +1062,9 @@ def LocalAlignment(score_matrix_path, indel_pen, nucl_1, nucl_2):
     for i in range(1, n+1):
         for j in range(1, m+1):
             match = score_matrix[nucl_1[i-1]][nucl_2[j-1]]
-            s[i][j] = max(0, s[i-1][j] - indel_pen, s[i][j-1] - indel_pen, s[i-1][j-1] + match)
-            if s[i][j] == s[i-1][j] - indel_pen: backtrack[i][j] = 'S'
-            elif s[i][j] == s[i][j-1] - indel_pen: backtrack[i][j] = 'E'
+            s[i][j] = max(0, s[i-1][j] + indel_pen, s[i][j-1] + indel_pen, s[i-1][j-1] + match)
+            if s[i][j] == s[i-1][j] + indel_pen: backtrack[i][j] = 'S'
+            elif s[i][j] == s[i][j-1] + indel_pen: backtrack[i][j] = 'E'
             elif s[i][j] == s[i-1][j-1] + match: backtrack[i][j] = 'SE'
     arr = np.array(s)
     row_idx, col_idx = np.unravel_index(np.argmax(arr), arr.shape)
@@ -1419,3 +1419,297 @@ def LinearSpaceAlignment(score_matrix_path, indel_pen, nucl_1, nucl_2, top, bott
     path_right = LinearSpaceAlignment(score_matrix_path, indel_pen, nucl_1, nucl_2, mid_i_end, bottom, mid_j_end, right)
 
     return path_left + [edge_type] + path_right
+
+
+def Multiple_LCS(score_matrix_path, indel_pen, nucl_1, nucl_2, nucl_3):
+    score_matrix = ParseScoringMatrix(score_matrix_path)
+    m, n, p = len(nucl_1), len(nucl_2), len(nucl_3)
+    s = [[[0 for _ in range(p+1)] for _ in range(n+1)] for _ in range(m+1)]
+    backtrack = [[['' for _ in range(p+1)] for _ in range(n+1)] for _ in range(m+1)]
+    for i in range(1, m+1):
+        s[i][0][0] = s[i-1][0][0] + indel_pen
+        backtrack[i][0][0] = 'S'
+    for j in range(1, n+1):
+        s[0][j][0] = s[0][j-1][0] + indel_pen
+        backtrack[0][j][0] = 'E'
+    for k in range(1, p+1):
+        s[0][0][k] = s[0][0][k-1] + indel_pen
+        backtrack[0][0][k] = 'F'
+    for i in range(1, m+1):
+        for j in range(1, n+1):
+            s[i][j][0] = max(s[i-1][j][0] + indel_pen, s[i][j-1][0] + indel_pen, s[i-1][j-1][0] + indel_pen)
+            if s[i][j][0] == s[i-1][j][0] + indel_pen: backtrack[i][j][0] = 'S'
+            elif s[i][j][0] == s[i][j-1][0] + indel_pen: backtrack[i][j][0] = 'E'
+            else: backtrack[i][j][0] = 'SE'
+    for j in range(1, n+1):
+        for k in range(1, p+1):
+            s[0][j][k] = max(s[0][j-1][k] + indel_pen, s[0][j][k-1] + indel_pen, s[0][j-1][k-1] + indel_pen)
+            if s[0][j][k] == s[0][j-1][k] + indel_pen: backtrack[0][j][k] = 'E'
+            elif s[0][j][k] == s[0][j][k-1] + indel_pen: backtrack[0][j][k] = 'F'
+            else: backtrack[0][j][k] = 'FE'
+    for i in range(1, m+1):
+        for k in range(1, p+1):
+            s[i][0][k] = max(s[i-1][0][k] + indel_pen, s[i][0][k-1] + indel_pen, s[i-1][0][k-1] + indel_pen)
+            if s[i][0][k] == s[i-1][0][k] + indel_pen: backtrack[i][0][k] = 'S'
+            elif s[i][0][k] == s[i][0][k-1] + indel_pen: backtrack[i][0][k] = 'F'
+            else: backtrack[i][0][k] = 'FS'
+
+    for i in range(1, m+1):
+        for j in range(1, n+1):
+            for k in range(1, p+1):
+                # match = score_matrix[nucl_1[i-1]][nucl_2[j-1]]
+                match = 1 if (nucl_1[i-1] == nucl_2[j-1] == nucl_3[k-1]) else 0
+                S = s[i-1][j][k] + indel_pen
+                E = s[i][j-1][k] + indel_pen
+                F = s[i][j][k-1] + indel_pen
+                FE = s[i][j-1][k-1] + indel_pen
+                FS = s[i-1][j][k-1] + indel_pen
+                SE = s[i-1][j-1][k] + indel_pen
+                FSE = s[i-1][j-1][k-1] + match
+
+                s[i][j][k] = max(S, E, F, FE, FS, SE, FSE)
+                if s[i][j][k] == FSE: backtrack[i][j][k] = 'FSE'
+                elif s[i][j][k] == FE: backtrack[i][j][k] = 'FE'
+                elif s[i][j][k] == FS: backtrack[i][j][k] = 'FS'
+                elif s[i][j][k] == SE: backtrack[i][j][k] = 'SE'
+                elif s[i][j][k] == S: backtrack[i][j][k] = 'S'
+                elif s[i][j][k] == F: backtrack[i][j][k] = 'F'
+                elif s[i][j][k] == E: backtrack[i][j][k] = 'E'
+    align_nucl_1, align_nucl_2, align_nucl_3 = backtrack_multi_alignment(m, n, p, backtrack, nucl_1, nucl_2, nucl_3)
+    return s[m][n][p], align_nucl_1, align_nucl_2, align_nucl_3
+
+
+def backtrack_multi_alignment(start_row, start_col, start_hgt, backtrack, nucl_1, nucl_2, nucl_3):
+    align_nucl_1, align_nucl_2, align_nucl_3 = '', '', ''
+    i, j, k = start_row, start_col, start_hgt
+    while i > 0 or j > 0 or k > 0:
+        if backtrack[i][j][k] == 'S':
+            align_nucl_1 += nucl_1[i-1]
+            align_nucl_2 += '-'
+            align_nucl_3 += '-'
+            i -= 1
+        elif backtrack[i][j][k] == 'E':
+            align_nucl_1 += '-'
+            align_nucl_2 += nucl_2[j-1]
+            align_nucl_3 += '-'
+            j -= 1
+        elif backtrack[i][j][k] == 'F':
+            align_nucl_1 += '-'
+            align_nucl_2 += '-'
+            align_nucl_3 += nucl_3[k-1]
+            k -= 1
+        elif backtrack[i][j][k] == 'FE':
+            align_nucl_1 += '-'
+            align_nucl_2 += nucl_2[j-1]
+            align_nucl_3 += nucl_3[k-1]
+            j -= 1
+            k -= 1
+        elif backtrack[i][j][k] == 'FS':
+            align_nucl_1 += nucl_1[i-1]
+            align_nucl_2 += '-'
+            align_nucl_3 += nucl_3[k-1]
+            i -= 1
+            k -= 1
+        elif backtrack[i][j][k] == 'SE':
+            align_nucl_1 += nucl_1[i-1]
+            align_nucl_2 += nucl_2[j-1]
+            align_nucl_3 += '-'
+            i -= 1
+            j -= 1
+        elif backtrack[i][j][k] == 'FSE':
+            align_nucl_1 += nucl_1[i-1]
+            align_nucl_2 += nucl_2[j-1]
+            align_nucl_3 += nucl_3[k-1]
+            i -= 1
+            j -= 1
+            k -= 1
+        else:
+            break
+    return align_nucl_1[::-1], align_nucl_2[::-1], align_nucl_3[::-1]
+
+
+def parse_adjacency_list(filepath):
+    graph = {}
+    with open(filepath, 'r') as file:
+        lines = file.readlines()
+        for line in lines:
+            source_str, dest_str = line.strip().split(' -> ')
+            src, dests = int(source_str), [int(dest) for dest in dest_str.split(',')]
+            if src not in graph: graph[src] = dests
+            else: graph[src] += dests
+            for dest in dests:
+                if dest not in graph: graph[dest] = []
+    return graph
+
+
+def TopologicalOrdering(graph):
+    topological_list = []
+    in_degree = {}
+    for node, adj_lst in graph.items():
+        for dst in adj_lst:
+            if dst not in in_degree: in_degree[dst] = 1
+            else: in_degree[dst] += 1
+        if node not in in_degree: in_degree[node] = 0
+    candidates = [node for node, value in in_degree.items() if value == 0]
+    while candidates:
+        a = candidates.pop()
+        topological_list.append(a)
+        while graph[a]:
+            b = graph[a].pop()
+            in_degree[b] -= 1
+            if in_degree[b] == 0: candidates.append(b)
+    for node, adj_lst in graph.items():
+        if adj_lst: return "The input graph is not a DAG."
+    return topological_list
+
+
+""" ------------------------------------------ """
+""" Interactive Text for Week 4 (Coursera III) """
+
+def GreedySorting(permutation):
+    permu_seq = []
+    n = len(permutation)
+    current_permu = permutation.copy()
+    for i in range(1, n+1):
+        if current_permu[i-1] == i: continue
+        elif current_permu[i-1] == -i:
+            current_permu[i-1] = i
+            permu_seq.append(current_permu.copy())
+        else:
+            if i in current_permu:
+                index1 = current_permu.index(i)
+                current_permu[i-1: index1+1] = current_permu[i-1: index1+1][::-1]
+                for j in range (i-1, index1+1): current_permu[j] = -current_permu[j]
+                permu_seq.append(current_permu.copy())
+                current_permu[i-1] = i
+                permu_seq.append(current_permu.copy())
+            else:
+                index2 = current_permu.index(-i)
+                current_permu[i-1: index2+1] = current_permu[i-1: index2+1][::-1]
+                for j in range (i-1, index2+1): current_permu[j] = -current_permu[j]
+                permu_seq.append(current_permu.copy())
+    return permu_seq
+
+
+def CountBreakpoints(permutation):
+    n = len(permutation)
+    permutation = [0] + permutation + [n+1]
+    bp = 0
+    for i in range(1, n+2):
+        if permutation[i] - permutation[i-1] != 1: bp += 1
+    return bp
+
+
+""" ------------------------------------------ """
+""" Interactive Text for Week 5 (Coursera III) """
+
+def ChromosomeToCycle(Chromosome):
+    n = len(Chromosome)
+    Nodes = [0] * (2*n)
+    for j in range(0, n):
+        i = Chromosome[j]
+        if i > 0:
+            Nodes[2*j] = 2*i-1
+            Nodes[2*j+1] = 2*i
+        else:
+            Nodes[2*j] = -2*i
+            Nodes[2*j+1] = -2*i-1
+    return Nodes
+
+
+def CycleToChromosome(Nodes):
+    n = len(Nodes)
+    Chromosome = [0] * (n//2)
+    for j in range(0, n//2):
+        if Nodes[2*j] < Nodes[2*j+1]: Chromosome[j] = Nodes[2*j+1] // 2
+        else: Chromosome[j] = -Nodes[2*j] // 2 
+    return Chromosome
+
+
+def ColoredEdges(P):
+    edges = []
+    for chromosome in P:
+        nodes = ChromosomeToCycle(chromosome)
+        n = len(chromosome)
+        for j in range(0, n-1):
+            edges.append((nodes[2*j+1], nodes[2*j+2]))
+        edges.append((nodes[2*n-1], nodes[0]))
+    return edges
+
+
+def GraphToGenome(genome_graph):
+    P = []
+    nodes = []
+    for edge in genome_graph:
+        nodes.append(edge[0])
+        if edge[0] < edge[1]: nodes.append(edge[1])
+        else:
+            nodes = [edge[1]] + nodes
+            chromosome = CycleToChromosome(nodes)
+            P.append(chromosome)
+            nodes = []
+    return P
+
+
+def CountCycles(graph):
+    n = (len(graph) - 1) // 2
+    visited = [False for _ in range(2*n+1)]
+    cycles = 0
+    for node in range(1, 2*n+1):
+        if visited[node] or not graph[node]: continue
+        while not visited[node]:
+            visited[node] = True
+            for dst in graph[node]:
+                if not visited[dst]:
+                    node = dst
+                    break
+        cycles += 1
+    return cycles
+
+
+def TwoBreakDistance(P, Q):
+    edges_P = ColoredEdges(P)
+    edges_Q = ColoredEdges(Q)
+    n = len(edges_P)
+    graph = [[] for _ in range(2*n+1)]
+    for src, dst in edges_P:
+        graph[src].append(dst)
+        graph[dst].append(src)
+    for src, dst in edges_Q:
+        graph[src].append(dst)
+        graph[dst].append(src)
+    cycles_num = CountCycles(graph)
+    two_break_dist = n - cycles_num
+    return two_break_dist
+
+
+def TwoBreakOnGenomeGraph(edges, i1, i2, i3, i4):
+    n = len(edges)
+    graph = [[] for _ in range(2*n+1)]
+    for src, dst in edges:
+        graph[src].append(dst)
+    graph[i1].remove(i2) if i2 in graph[i1] else graph[i2].remove(i1)
+    graph[i1].append(i3)
+    graph[i3].remove(i4) if i4 in graph[i3] else graph[i4].remove(i3)
+    graph[i2].append(i4)
+    two_break_edges = [(i, j) for i, neighbors in enumerate(graph) for j in neighbors]
+    return two_break_edges
+
+
+def TwoBreakOnGenome(genome, i1, i2, i3, i4):
+    edges = ColoredEdges(genome)
+    print(edges)
+    n = len(edges)
+    graph = [[] for _ in range(2*n+1)]
+    for src, dst in edges:
+        graph[src].append(dst)
+    if i1 in graph[i2]: i1, i2 = i2, i1
+    if i3 in graph[i4]: i3, i4 = i4, i3
+    graph[i1].remove(i2)
+    graph[i1].append(i4)
+    graph[i3].remove(i4)
+    graph[i3].append(i2)
+    two_break_edges = [(i, j) for i, neighbors in enumerate(graph) for j in neighbors]
+    print(two_break_edges)
+    two_break_genome = GraphToGenome(two_break_edges)
+    return two_break_genome

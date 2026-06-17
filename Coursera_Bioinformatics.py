@@ -7,39 +7,43 @@ from Bio.Seq import Seq
 
 start_time = time.perf_counter()
 
-with open('rosalind.txt', 'r') as file:
-    lines = file.readlines()
-    nucleotide_1 = lines[0].strip()
-    nucleotide_2 = lines[1].strip()
+# with open('rosalind.txt', 'r') as file:
+#     lines = file.readlines()
+#     nucleotide_1, nucleotide_2 = lines[0].strip(), lines[1].strip()
+# max_align_score, align_nucl_1, align_nucl_2 = LocalAlignment('PAM250.txt', -5, nucleotide_1, nucleotide_2)
+# with open('output.txt', 'w') as file:
+#     file.write(f"{max_align_score}\n")
+#     file.write(f"{align_nucl_1}\n")
+#     file.write(f"{align_nucl_2}")
 
 # records = list(SeqIO.parse('rosalind.txt', 'fasta'))
 # str1 = str(records[0].seq)
 # str2 = str(records[1].seq)
 
-max_score = MiddleEdge('BLOSUM62.txt', -5, nucleotide_1, nucleotide_2, 0, len(nucleotide_1), 0, len(nucleotide_2))[1]
-path = LinearSpaceAlignment('BLOSUM62.txt', -5, nucleotide_1, nucleotide_2, 0, len(nucleotide_1), 0, len(nucleotide_2))
+# with open('rosalind.txt', 'r') as file:
+#     lines = [line.strip() for line in file.readlines()]
+#     line_0 = lines[0][1:-1].split(')(')
+#     genome_P = [[int(ele) for ele in chromo.split(' ')] for chromo in line_0]
+#     line_1 = lines[1][1:-1].split(')(')
+#     genome_Q = [[int(ele) for ele in chromo.split(' ')] for chromo in line_1]
+# two_break_dist = TwoBreakDistance(genome_P, genome_Q)
+# with open('output.txt', 'w') as file:
+#     file.write(f"{two_break_dist}")
 
-v, w = nucleotide_1, nucleotide_2
-v_idx, w_idx = 0, 0
-v_aligned, w_aligned = [], []
-for edge in path:
-    if edge == 'D':
-        v_aligned.append(v[v_idx])
-        w_aligned.append(w[w_idx])
-        v_idx += 1
-        w_idx += 1
-    elif edge == 'R':
-        v_aligned.append('-')
-        w_aligned.append(w[w_idx])
-        w_idx += 1
-    elif edge == 'Dwn':
-        v_aligned.append(v[v_idx])
-        w_aligned.append('-')
-        v_idx += 1
-
+with open('rosalind.txt', 'r') as file:
+    lines = [line.strip() for line in file.readlines()]
+    line_0 = lines[0][1:-1].split(')(')
+    genome = [[int(ele) for ele in chromo.split(' ')] for chromo in line_0]
+    i1, i2, i3, i4 = [int(ele) for ele in lines[1].split(', ')]
+# print(genome)
+# print(f"{i1} {i2} {i3} {i4}")
+two_break_genome = TwoBreakOnGenome(genome, i1, i2, i3, i4)
 with open('output.txt', 'w') as file:
-    file.write(f"{max_score}\n")
-    file.write(f"{"".join(v_aligned)}\n{"".join(w_aligned)}")
+    for chromo in two_break_genome:
+        file.write(f"({chromo[0]}") if chromo[0] < 0 else file.write(f"(+{chromo[0]}")
+        for i in range(1, len(chromo)):
+            file.write(f" {chromo[i]}") if chromo[i] < 0 else file.write(f"(+{chromo[i]}")
+        file.write(f")")
 
 end_time = time.perf_counter()
 elapsed_time = end_time - start_time
